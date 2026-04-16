@@ -1,0 +1,57 @@
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+import redis.asyncio as aioredis
+
+from app.db.base import get_db
+from app.config import settings
+from app.services.auth_service import decode_token
+from app.models.user import User
+
+bearerScheme = HTTPBearer()
+
+
+async def get_redis():
+    client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearerScheme),
+    db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
+) -> User:
+    token = credentials.credentials
+    payload = decode_token(token)
+
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Невалідний токен")
+
+    telegram_id = int(payload["sub"])
+
+    # Перевірка Redis Blacklist
+    is_blocked = await redis.get(f"blacklist:{telegram_id}")
+    if is_blocked:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Користувача заблоковано")
+
+    # Superadmin — без запиту в БД
+    if telegram_id == settings.SUPERADMIN_TELEGRAM_ID:
+        return User(telegram_id=telegram_id, full_name="Superadmin", role="admin", is_active=True)
+
+    result = await db.execute(select(User).where(User.telegram_id == telegram_id))
+    user = result.scalar_one_or_none()
+
+    if not user or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Доступ заборонено")
+
+    return user
+
+
+async def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role not in ("admin",):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Потрібні права адміністратора")
+    return current_user

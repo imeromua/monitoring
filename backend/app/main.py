@@ -5,6 +5,7 @@ from app.api.v1 import auth, catalog, stores, sessions, results, reports
 from app.api.v1.admin import users as admin_users
 from app.api.v1.admin import stores as admin_stores
 from app.api.v1.admin import catalog as admin_catalog
+from app.api.middleware.rate_limit import RateLimitMiddleware
 
 app = FastAPI(
     title="Store Check API",
@@ -12,6 +13,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Middleware (порядок важливий: Rate Limit → CORS)
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # в prod замінити на домен

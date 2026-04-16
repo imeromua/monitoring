@@ -1,5 +1,6 @@
 <template>
   <div class="min-h-screen bg-tg-bg text-tg-text">
+    <ConnectionStatus />
     <router-view />
   </div>
 </template>
@@ -7,16 +8,15 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import ConnectionStatus from '@/components/ConnectionStatus.vue'
 
 const auth = useAuthStore()
 
 onMounted(async () => {
-  // Ініціалізація Telegram WebApp
   const tg = window.Telegram?.WebApp
   if (tg) {
     tg.ready()
     tg.expand()
-    // Адаптуємо CSS-змінні під тему Telegram
     const theme = tg.themeParams
     if (theme) {
       document.documentElement.style.setProperty('--tg-theme-bg-color', theme.bg_color || '#ffffff')

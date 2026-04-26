@@ -37,25 +37,35 @@ async def upload_catalog(
     uploaded_articles = set(df["article_id"].dropna().tolist())
     upserted = 0
 
-    for _, row in df.iterrows():
-        from sqlalchemy import select
-        result = await db.execute(select(Product).where(Product.article_id == row["article_id"]))
-        product = result.scalar_one_or_none()
+    from sqlalchemy.dialects.postgresql import insert
 
-        if product:
-            product.name = row["name"]
-            product.weight_label = row.get("weight_label")
-            product.category_id = int(row["category_id"])
-            product.is_archived = False
-        else:
-            product = Product(
-                article_id=row["article_id"],
-                name=row["name"],
-                weight_label=row.get("weight_label"),
-                category_id=int(row["category_id"]),
-            )
-            db.add(product)
-        upserted += 1
+    records = []
+    for _, row in df.iterrows():
+        weight_label = row.get("weight_label")
+        if pd.isna(weight_label):
+            weight_label = None
+            
+        records.append({
+            "article_id": str(row["article_id"]),
+            "name": str(row["name"]),
+            "weight_label": str(weight_label) if weight_label else None,
+            "category_id": int(row["category_id"]),
+            "is_archived": False
+        })
+
+    if records:
+        stmt = insert(Product).values(records)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=['article_id'],
+            set_={
+                'name': stmt.excluded.name,
+                'weight_label': stmt.excluded.weight_label,
+                'category_id': stmt.excluded.category_id,
+                'is_archived': False
+            }
+        )
+        await db.execute(stmt)
+        upserted = len(records)
 
     # Архівація видалених позицій
     from sqlalchemy import update

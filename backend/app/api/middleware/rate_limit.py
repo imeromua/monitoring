@@ -10,6 +10,7 @@ RATE_LIMITS = {
 }
 DEFAULT_LIMIT = (120, 60)            # 120 зап/хв — для решти маршрутів
 
+redis_client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
@@ -33,22 +34,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 max_requests, window = limits
                 break
 
-        redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-        key = f"rate:{identifier}:{request.url.path.split('/')[3]}"
+        key = f"rate:{identifier}:{request.url.path.split('/')[3]}" if len(request.url.path.split('/')) > 3 else f"rate:{identifier}:{request.url.path}"
 
-        try:
-            count = await redis.incr(key)
-            if count == 1:
-                await redis.expire(key, window)
+        count = await redis_client.incr(key)
+        if count == 1:
+            await redis_client.expire(key, window)
 
-            if count > max_requests:
-                await redis.aclose()
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=f"Перевищено ліміт запитів. Спробуйте через {window} сек.",
-                )
-        finally:
-            await redis.aclose()
+        if count > max_requests:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Перевищено ліміт запитів. Спробуйте через {window} сек.",
+            )
 
         return await call_next(request)
 

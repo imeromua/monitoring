@@ -29,7 +29,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getAdminReportsArchive, downloadAdminReport } from '@/api/reports'
+import { getAdminReportsArchive } from '@/api/reports'
 import TabBar from '@/components/TabBar.vue'
 
 const files = ref([])
@@ -55,22 +55,18 @@ function formatDate(dateString) {
   })
 }
 
-async function downloadFile(filename) {
-  try {
-    const { data } = await downloadAdminReport(filename)
-    
-    // Створення посилання для завантаження Blob
-    const url = window.URL.createObjectURL(new Blob([data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', filename)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-  } catch (err) {
-    alert('Помилка при завантаженні файлу')
-    console.error(err)
+function downloadFile(filename) {
+  const fileUrl = `${window.location.origin}/api/v1/admin/reports/archive/${filename}`
+  const tg = window.Telegram?.WebApp
+  if (tg?.openLink) {
+    // Telegram WebApp на мобільних: відкриваємо в системному браузері
+    tg.openLink(fileUrl)
+  } else {
+    // Фолбек для десктопного браузера
+    const a = document.createElement('a')
+    a.href = fileUrl
+    a.download = filename
+    a.click()
   }
 }
 </script>

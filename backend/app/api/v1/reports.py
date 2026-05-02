@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
 import os
 
 from app.api.deps import require_admin
@@ -21,7 +20,7 @@ async def export_report(
         date_from=payload.date_from,
         date_to=payload.date_to,
     )
-    
+
     # Захист від Path Traversal
     safe_base = os.path.realpath(settings.REPORTS_DIR)
     real_path = os.path.realpath(filepath)
@@ -29,8 +28,5 @@ async def export_report(
         raise HTTPException(status_code=400, detail="Недозволений шлях")
 
     filename = os.path.basename(filepath)
-    return FileResponse(
-        path=filepath,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=filename,
-    )
+    # Повертаємо ім'я файлу — фронтенд відкриє завантаження через Telegram.WebApp.openLink()
+    return {"filename": filename}

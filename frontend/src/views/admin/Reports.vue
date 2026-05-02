@@ -36,7 +36,6 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { exportReport } from '@/api/reports'
 import api from '@/api/index.js'
 import TabBar from '@/components/TabBar.vue'
 
@@ -54,19 +53,37 @@ onMounted(async () => {
 async function downloadReport() {
   loading.value = true
   try {
-    const { data } = await exportReport({
+    // Спочатку генеруємо звіт на сервері
+    const { data } = await api.post('/reports/export', {
       date_from: dateFrom.value,
       date_to: dateTo.value,
       store_id: storeId.value,
     })
-    const url = URL.createObjectURL(new Blob([data]))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `report_${dateFrom.value}_${dateTo.value}.xlsx`
-    a.click()
-    URL.revokeObjectURL(url)
+
+    // Бекенд повертає { filename } — відкриваємо завантаження через Telegram
+    const filename = data?.filename
+    if (!filename) throw new Error('Не вдалось створити звіт')
+
+    const fileUrl = `${window.location.origin}/api/v1/admin/reports/archive/${filename}`
+    openFileUrl(fileUrl, filename)
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Помилка генерації звіту')
   } finally {
     loading.value = false
+  }
+}
+
+function openFileUrl(url, filename) {
+  const tg = window.Telegram?.WebApp
+  if (tg?.openLink) {
+    // Telegram WebApp: відкриваємо в системному браузері де завантаження працює
+    tg.openLink(url)
+  } else {
+    // Фолбек для браузера
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
   }
 }
 </script>

@@ -80,7 +80,7 @@ async def upload_store_logo(
     with open(filepath, "wb") as f:
         f.write(content)
 
-    store.logo_url = f"/static/store-logos/{filename}"
+    store.logo_url = f"/api/v1/static/store-logos/{filename}"
     await db.commit()
 
     return {"logo_url": store.logo_url}

@@ -30,7 +30,7 @@ API_PREFIX = "/api/v1"
 
 # Роздача статики — лого магазинів (!повинно бути до API-роутерів)
 app.mount(
-    "/static/store-logos",
+    "/api/v1/static/store-logos",
     StaticFiles(directory=str(settings.stores_logos_path)),
     name="store-logos",
 )

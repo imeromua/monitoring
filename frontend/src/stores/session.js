@@ -3,14 +3,16 @@ import { ref } from 'vue'
 import { createSession, addResult, completeSession } from '@/api/sessions'
 
 const OFFLINE_KEY = 'offline_queue'
+const SESSION_KEY = 'current_session'
 
 export const useSessionStore = defineStore('session', () => {
-  const currentSession = ref(null)
+  const currentSession = ref(JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'))
   const offlineQueue = ref(JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]'))
 
   async function startSession(storeId) {
     const { data } = await createSession(storeId)
     currentSession.value = data
+    localStorage.setItem(SESSION_KEY, JSON.stringify(data))
     return data
   }
 
@@ -44,6 +46,7 @@ export const useSessionStore = defineStore('session', () => {
     await syncOfflineQueue()
     await completeSession(currentSession.value.id)
     currentSession.value = null
+    localStorage.removeItem(SESSION_KEY)
   }
 
   return { currentSession, offlineQueue, startSession, saveResult, syncOfflineQueue, finish }

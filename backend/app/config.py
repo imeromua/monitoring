@@ -31,14 +31,16 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USER: str
     SMTP_PASSWORD: str
+    SMTP_FROM: str = ""  # Верифікований адрес відправника. Якщо порожній — використовується SMTP_USER
     REPORT_RECIPIENTS: str  # comma-separated emails
+
+    @property
+    def smtp_from_address(self) -> str:
+        return self.SMTP_FROM if self.SMTP_FROM else self.SMTP_USER
 
     # Reports
     REPORTS_DIR: str = "/tmp/reports"
     REPORT_TTL_HOURS: int = 2
-
-    # Store Logos
-    STORES_LOGOS_DIR: str = "/tmp/store_logos"
 
     @property
     def report_recipients_list(self) -> list[str]:
@@ -52,7 +54,7 @@ class Settings(BaseSettings):
 
     @property
     def stores_logos_path(self) -> Path:
-        path = Path(self.STORES_LOGOS_DIR)
+        path = Path(self.REPORTS_DIR).parent / "store-logos"
         path.mkdir(parents=True, exist_ok=True)
         return path
 

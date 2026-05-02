@@ -17,7 +17,6 @@ class ProductSchema(BaseModel):
     id: int
     article_id: str
     name: str
-    weight_label: Optional[str] = None
     category_id: int
 
     class Config:

@@ -5,10 +5,20 @@
     </div>
 
     <div class="p-4 space-y-4">
-      <p class="text-sm text-tg-hint">
-        Завантажте .xlsx файл з колонками: <strong>article_id, name, category_id</strong> (та необов'язково <strong>weight_label</strong>).
-        Відсутні позиції будуть архівовані.
-      </p>
+      <div class="bg-tg-secondary rounded-2xl p-4 text-sm space-y-1">
+        <p class="font-medium mb-2">📋 Формат файлу .xlsx</p>
+        <div class="grid grid-cols-3 gap-1 text-center">
+          <div class="bg-tg-bg rounded-xl py-2 font-medium">Категорія</div>
+          <div class="bg-tg-bg rounded-xl py-2 font-medium">Артикул</div>
+          <div class="bg-tg-bg rounded-xl py-2 font-medium">Назва</div>
+          <div class="bg-tg-bg/50 rounded-xl py-1.5 text-tg-hint text-xs">Назва категорії</div>
+          <div class="bg-tg-bg/50 rounded-xl py-1.5 text-tg-hint text-xs">8 цифр</div>
+          <div class="bg-tg-bg/50 rounded-xl py-1.5 text-tg-hint text-xs">включає вагу/об'єм</div>
+        </div>
+        <p class="text-tg-hint text-xs pt-1">
+          Категорія створюється автоматично якщо не існує. Відсутні позиції будуть архівовані.
+        </p>
+      </div>
 
       <!-- Зона завантаження -->
       <label

@@ -101,3 +101,14 @@ Thumbs.db
 *.tmp
 *.bak
 *.orig
+monitoring_audit.docx
+audit_extracted/\[Content_Types].xml
+audit_extracted/_rels/.rels
+audit_extracted/docProps/core.xml
+audit_extracted/word/document.xml
+audit_extracted/word/fontTable.xml
+audit_extracted/word/numbering.xml
+audit_extracted/word/settings.xml
+audit_extracted/word/styles.xml
+audit_extracted/word/webSettings.xml
+audit_extracted/word/_rels/document.xml.rels

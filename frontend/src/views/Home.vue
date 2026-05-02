@@ -33,7 +33,7 @@
         >
           <div class="text-2xl mb-2">📦</div>
           <div class="font-medium text-sm">{{ cat.name }}</div>
-          <div class="text-xs text-tg-hint mt-1">{{ productCount(cat.id) }} товарів</div>
+          <div class="text-xs text-tg-hint mt-1">{{ catalog.getTotalProductsCount(cat.id) }} товарів</div>
         </button>
       </div>
       <p v-if="allCategories.length === 0" class="text-center text-tg-hint text-sm py-6">
@@ -67,10 +67,6 @@ const storeName = computed(() => {
   const s = catalog.stores.find((s) => s.id === session.currentSession?.store_id)
   return s ? s.name : ''
 })
-
-function productCount(catId) {
-  return (catalog.productsByCategory[catId] || []).length
-}
 
 function goToCarousel(catId) {
   router.push({ name: 'Carousel', params: { categoryId: catId } })

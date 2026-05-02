@@ -50,6 +50,24 @@ export const useCatalogStore = defineStore('catalog', () => {
     return map
   })
 
+  function getSubcategoryIds(catId) {
+    let ids = [catId]
+    const children = categories.value.filter(c => c.parent_id === catId).map(c => c.id)
+    for (const childId of children) {
+      ids = ids.concat(getSubcategoryIds(childId))
+    }
+    return ids
+  }
+
+  function getTotalProductsCount(catId) {
+    const ids = getSubcategoryIds(catId)
+    let count = 0
+    for (const id of ids) {
+      count += (productsByCategory.value[id] || []).length
+    }
+    return count
+  }
+
   async function load() {
     try {
       const [catalogRes, storesRes] = await Promise.all([getCatalog(), getStores()])
@@ -71,5 +89,5 @@ export const useCatalogStore = defineStore('catalog', () => {
     }
   }
 
-  return { categories, products, stores, productsByCategory, load }
+  return { categories, products, stores, productsByCategory, getTotalProductsCount, load }
 })

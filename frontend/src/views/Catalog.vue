@@ -12,7 +12,7 @@
         class="w-full text-left py-3 px-4 rounded-xl bg-tg-secondary active:opacity-70 transition-opacity"
       >
         <span class="font-medium text-sm">{{ cat.name }}</span>
-        <span class="text-tg-hint text-xs ml-2">({{ productCount(cat.id) }})</span>
+        <span class="text-tg-hint text-xs ml-2">({{ catalog.getTotalProductsCount(cat.id) }})</span>
       </button>
 
       <p v-if="categoriesWithProducts.length === 0" class="text-center text-tg-hint text-sm py-10">
@@ -33,16 +33,12 @@ import TabBar from '@/components/TabBar.vue'
 const router = useRouter()
 const catalog = useCatalogStore()
 
-// Тільки категорії де є хоча б один товар
+// Тільки категорії де є хоча б один товар (включаючи підкатегорії)
 const categoriesWithProducts = computed(() =>
   catalog.categories
-    .filter((c) => (catalog.productsByCategory[c.id] || []).length > 0)
+    .filter((c) => catalog.getTotalProductsCount(c.id) > 0)
     .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, 'uk'))
 )
-
-function productCount(catId) {
-  return (catalog.productsByCategory[catId] || []).length
-}
 
 function goToCarousel(catId) {
   router.push({ name: 'Carousel', params: { categoryId: catId } })

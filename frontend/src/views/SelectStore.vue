@@ -36,7 +36,7 @@ const loading = ref(true)
 const stores = ref([])
 
 onMounted(async () => {
-  await catalog.load()
+  await catalog.load(true)
   stores.value = catalog.stores
   loading.value = false
 })

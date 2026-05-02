@@ -8,9 +8,11 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useCatalogStore } from '@/stores/catalog'
 import ConnectionStatus from '@/components/ConnectionStatus.vue'
 
 const auth = useAuthStore()
+const catalog = useCatalogStore()
 
 onMounted(async () => {
   const tg = window.Telegram?.WebApp
@@ -28,5 +30,8 @@ onMounted(async () => {
     }
   }
   await auth.init()
+  if (auth.isAuthenticated) {
+    await catalog.load()
+  }
 })
 </script>

@@ -40,6 +40,7 @@ export const useCatalogStore = defineStore('catalog', () => {
   const categories = ref([])
   const products = ref([])
   const stores = ref([])
+  const loaded = ref(false)
 
   const productsByCategory = computed(() => {
     const map = {}
@@ -68,12 +69,14 @@ export const useCatalogStore = defineStore('catalog', () => {
     return count
   }
 
-  async function load() {
+  async function load(force = false) {
+    if (loaded.value && !force) return
     try {
       const [catalogRes, storesRes] = await Promise.all([getCatalog(), getStores()])
       categories.value = catalogRes.data.categories
       products.value = catalogRes.data.products
       stores.value = storesRes.data
+      loaded.value = true
       // Зберігаємо в IndexedDB для офлайн-режиму
       await saveToIDB('catalog', { categories: categories.value, products: products.value })
       await saveToIDB('stores', stores.value)

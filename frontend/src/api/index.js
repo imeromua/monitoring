@@ -5,9 +5,8 @@ const api = axios.create({
   timeout: 10000,
 })
 
-// Додаємо JWT токен до кожного запиту (читаємо з sessionStorage — туди зберігає auth.js)
 api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('access_token')
+  const token = localStorage.getItem('access_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -19,8 +18,9 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 403 || err.response?.status === 401) {
-      sessionStorage.removeItem('access_token')
-      sessionStorage.removeItem('user_role')
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('user_role')
+      localStorage.removeItem('init_data')
       window.location.href = '/unauthorized'
     }
     return Promise.reject(err)

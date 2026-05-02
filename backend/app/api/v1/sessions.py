@@ -19,13 +19,13 @@ async def create_session(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    async with db.begin():
-        session = MonitoringSession(
-            user_id=current_user.id,
-            store_id=payload.store_id,
-            status=SessionStatus.in_progress,
-        )
-        db.add(session)
+    session = MonitoringSession(
+        user_id=current_user.id,
+        store_id=payload.store_id,
+        status=SessionStatus.in_progress,
+    )
+    db.add(session)
+    await db.commit()
     await db.refresh(session)
     return session
 

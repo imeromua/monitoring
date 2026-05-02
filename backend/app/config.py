@@ -54,7 +54,8 @@ class Settings(BaseSettings):
 
     @property
     def stores_logos_path(self) -> Path:
-        path = Path(self.REPORTS_DIR).parent / "store-logos"
+        # Реальний шлях на сервері: /tmp/store_logos (з підкресленням)
+        path = Path("/tmp/store_logos")
         path.mkdir(parents=True, exist_ok=True)
         return path
 

@@ -11,12 +11,19 @@
         v-for="store in stores"
         :key="store.id"
         @click="selectStore(store)"
-        class="w-full py-5 px-4 rounded-2xl bg-tg-secondary text-tg-text text-lg font-medium active:opacity-70 transition-opacity"
+        class="w-full flex items-center gap-4 py-4 px-4 rounded-2xl bg-tg-secondary text-tg-text active:opacity-70 transition-opacity"
       >
-        🏪 {{ store.name }}
-        <span v-if="store.address" class="block text-sm text-tg-hint font-normal mt-1">
-          {{ store.address }}
-        </span>
+        <!-- Аватар -->
+        <div class="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 bg-tg-hint/20 flex items-center justify-center">
+          <img v-if="store.logo_url" :src="store.logo_url" :alt="store.name" class="w-full h-full object-cover" />
+          <span v-else class="text-3xl">🏪</span>
+        </div>
+        <!-- Текст -->
+        <div class="text-left flex-1 min-w-0">
+          <div class="font-semibold text-base truncate">{{ store.name }}</div>
+          <div v-if="store.address" class="text-sm text-tg-hint truncate mt-0.5">{{ store.address }}</div>
+        </div>
+        <span class="text-tg-hint text-xl flex-shrink-0">›</span>
       </button>
     </div>
   </div>

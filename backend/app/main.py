@@ -28,6 +28,13 @@ app.add_middleware(
 
 API_PREFIX = "/api/v1"
 
+# Роздача статики — лого магазинів (!повинно бути до API-роутерів)
+app.mount(
+    "/static/store-logos",
+    StaticFiles(directory=str(settings.stores_logos_path)),
+    name="store-logos",
+)
+
 app.include_router(auth.router, prefix=API_PREFIX)
 app.include_router(catalog.router, prefix=API_PREFIX)
 app.include_router(stores.router, prefix=API_PREFIX)
@@ -43,12 +50,3 @@ app.include_router(admin_reports_archive.router, prefix=API_PREFIX)
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
-
-
-# Роздача статики — лого магазинів
-# Примітка: папка створюється автоматично при першому зверненні через settings.stores_logos_path
-app.mount(
-    "/static/store-logos",
-    StaticFiles(directory=str(settings.stores_logos_path)),
-    name="store-logos",
-)

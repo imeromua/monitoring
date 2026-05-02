@@ -38,6 +38,24 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
+    path: '/admin/stores',
+    name: 'AdminStores',
+    component: () => import('@/views/admin/Stores.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/reports',
+    name: 'AdminReports',
+    component: () => import('@/views/admin/Reports.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/catalog',
+    name: 'AdminCatalog',
+    component: () => import('@/views/admin/CatalogImport.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/unauthorized',
     name: 'Unauthorized',
     component: () => import('@/views/Unauthorized.vue'),
@@ -51,8 +69,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
-  
-  // Чекаємо ініціалізації авторизації (Telegram API)
+
   if (!auth.isInitialized) {
     await new Promise((resolve) => {
       const unwatch = watch(() => auth.isInitialized, (val) => {

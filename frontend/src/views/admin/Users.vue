@@ -80,7 +80,10 @@ const adminMenu = [
   { route: 'Admin',         icon: '👥', label: 'Персонал' },
   { route: 'AdminStores',   icon: '🏪', label: 'Магазини' },
   { route: 'AdminReports',  icon: '📊', label: 'Звіти' },
-  { route: 'AdminCatalog',  icon: '📦', label: 'Каталог' },
+  { route: 'AdminReportsArchive', icon: '🗄️', label: 'Архів звітів' },
+  { route: 'AdminCatalog',  icon: '📦', label: 'Імпорт' },
+  { route: 'AdminProducts', icon: '🏷️', label: 'Товари' },
+  { route: 'AdminCategories', icon: '📁', label: 'Категорії' },
 ]
 
 const users = ref([])

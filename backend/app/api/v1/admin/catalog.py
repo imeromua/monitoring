@@ -10,6 +10,9 @@ from app.api.deps import require_admin, get_redis
 from app.models.user import User
 from app.models.product import Product
 from app.models.category import Category, CategoryLevel
+from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
+from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
+from typing import List
 
 router = APIRouter(prefix="/admin/catalog", tags=["admin"])
 
@@ -126,3 +129,134 @@ async def upload_catalog(
     await redis.delete("catalog:full")
 
     return {"status": "ok", "upserted": upserted}
+
+# --- Products CRUD ---
+
+@router.get("/products", response_model=List[ProductResponse])
+async def get_products(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    result = await db.execute(select(Product))
+    return result.scalars().all()
+
+@router.post("/products", response_model=ProductResponse)
+async def create_product(
+    product_in: ProductCreate,
+    db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
+    current_user: User = Depends(require_admin),
+):
+    # Check if article_id already exists
+    existing = await db.execute(select(Product).where(Product.article_id == product_in.article_id))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Товар з таким артикулом вже існує")
+        
+    new_product = Product(**product_in.model_dump())
+    db.add(new_product)
+    await db.commit()
+    await db.refresh(new_product)
+    await redis.delete("catalog:full")
+    return new_product
+
+@router.put("/products/{product_id}", response_model=ProductResponse)
+async def update_product(
+    product_id: int,
+    product_in: ProductUpdate,
+    db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
+    current_user: User = Depends(require_admin),
+):
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Товар не знайдено")
+
+    update_data = product_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(product, field, value)
+
+    await db.commit()
+    await db.refresh(product)
+    await redis.delete("catalog:full")
+    return product
+
+@router.delete("/products/{product_id}")
+async def delete_product(
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
+    current_user: User = Depends(require_admin),
+):
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Товар не знайдено")
+
+    await db.delete(product)
+    await db.commit()
+    await redis.delete("catalog:full")
+    return {"status": "ok"}
+
+# --- Categories CRUD ---
+
+@router.get("/categories", response_model=List[CategoryResponse])
+async def get_categories(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    result = await db.execute(select(Category).order_by(Category.sort_order))
+    return result.scalars().all()
+
+@router.post("/categories", response_model=CategoryResponse)
+async def create_category(
+    category_in: CategoryCreate,
+    db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
+    current_user: User = Depends(require_admin),
+):
+    new_category = Category(**category_in.model_dump())
+    db.add(new_category)
+    await db.commit()
+    await db.refresh(new_category)
+    await redis.delete("catalog:full")
+    return new_category
+
+@router.put("/categories/{category_id}", response_model=CategoryResponse)
+async def update_category(
+    category_id: int,
+    category_in: CategoryUpdate,
+    db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
+    current_user: User = Depends(require_admin),
+):
+    result = await db.execute(select(Category).where(Category.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Категорію не знайдено")
+
+    update_data = category_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(category, field, value)
+
+    await db.commit()
+    await db.refresh(category)
+    await redis.delete("catalog:full")
+    return category
+
+@router.delete("/categories/{category_id}")
+async def delete_category(
+    category_id: int,
+    db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
+    current_user: User = Depends(require_admin),
+):
+    result = await db.execute(select(Category).where(Category.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Категорію не знайдено")
+
+    await db.delete(category)
+    await db.commit()
+    await redis.delete("catalog:full")
+    return {"status": "ok"}

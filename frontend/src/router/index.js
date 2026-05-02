@@ -56,6 +56,24 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
+    path: '/admin/products',
+    name: 'AdminProducts',
+    component: () => import('@/views/admin/Products.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/categories',
+    name: 'AdminCategories',
+    component: () => import('@/views/admin/Categories.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/reports-archive',
+    name: 'AdminReportsArchive',
+    component: () => import('@/views/admin/ReportsArchive.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/unauthorized',
     name: 'Unauthorized',
     component: () => import('@/views/Unauthorized.vue'),

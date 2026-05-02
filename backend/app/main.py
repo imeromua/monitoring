@@ -5,6 +5,7 @@ from app.api.v1 import auth, catalog, stores, sessions, results, reports
 from app.api.v1.admin import users as admin_users
 from app.api.v1.admin import stores as admin_stores
 from app.api.v1.admin import catalog as admin_catalog
+from app.api.v1.admin import reports_archive as admin_reports_archive
 from app.api.middleware.rate_limit import RateLimitMiddleware
 from app.config import settings
 
@@ -35,6 +36,7 @@ app.include_router(reports.router, prefix=API_PREFIX)
 app.include_router(admin_users.router, prefix=API_PREFIX)
 app.include_router(admin_stores.router, prefix=API_PREFIX)
 app.include_router(admin_catalog.router, prefix=API_PREFIX)
+app.include_router(admin_reports_archive.router, prefix=API_PREFIX)
 
 
 @app.get("/health")

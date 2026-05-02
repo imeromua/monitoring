@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     REPORTS_DIR: str = "/tmp/reports"
     REPORT_TTL_HOURS: int = 2
 
+    # Store Logos
+    STORES_LOGOS_DIR: str = "/tmp/store_logos"
+
     @property
     def report_recipients_list(self) -> list[str]:
         return [e.strip() for e in self.REPORT_RECIPIENTS.split(",")]
@@ -44,6 +47,12 @@ class Settings(BaseSettings):
     @property
     def reports_path(self) -> Path:
         path = Path(self.REPORTS_DIR)
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
+    def stores_logos_path(self) -> Path:
+        path = Path(self.STORES_LOGOS_DIR)
         path.mkdir(parents=True, exist_ok=True)
         return path
 

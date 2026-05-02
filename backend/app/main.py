@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import auth, catalog, stores, sessions, results, reports
 from app.api.v1.admin import users as admin_users
@@ -42,3 +43,12 @@ app.include_router(admin_reports_archive.router, prefix=API_PREFIX)
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+
+# Роздача статики — лого магазинів
+# Примітка: папка створюється автоматично при першому зверненні через settings.stores_logos_path
+app.mount(
+    "/static/store-logos",
+    StaticFiles(directory=str(settings.stores_logos_path)),
+    name="store-logos",
+)

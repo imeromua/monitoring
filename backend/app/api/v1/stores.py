@@ -16,4 +16,4 @@ async def get_stores(
     current_user: User = Depends(get_current_user),
 ):
     stores = (await db.execute(select(Store).where(Store.is_active == True))).scalars().all()
-    return [{"id": s.id, "name": s.name, "address": s.address} for s in stores]
+    return [{"id": s.id, "name": s.name, "address": s.address, "logo_url": s.logo_url} for s in stores]

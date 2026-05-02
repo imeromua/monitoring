@@ -12,11 +12,21 @@
         <button
           v-for="store in catalog.stores"
           :key="store.id"
-          class="w-full text-left py-3 px-4 rounded-xl bg-tg-secondary text-sm active:opacity-70 transition-opacity"
+          class="w-full flex items-center gap-3 py-2.5 px-3 rounded-xl bg-tg-secondary text-sm active:opacity-70 transition-opacity"
           :class="store.id === session.currentSession?.store_id ? 'ring-2 ring-tg-button' : ''"
         >
-          <span class="font-medium">{{ store.name }}</span>
-          <span v-if="store.id === session.currentSession?.store_id" class="text-tg-hint text-xs ml-2">• поточний</span>
+          <!-- Аватар -->
+          <div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-tg-hint/20 flex items-center justify-center">
+            <img v-if="store.logo_url" :src="store.logo_url" :alt="store.name" class="w-full h-full object-cover" />
+            <span v-else class="text-xl">🏻️</span>
+          </div>
+          <!-- Текст -->
+          <div class="text-left flex-1 min-w-0">
+            <div class="font-medium truncate">{{ store.name }}</div>
+            <div v-if="store.address" class="text-xs text-tg-hint truncate">{{ store.address }}</div>
+          </div>
+          <!-- Поточний індикатор -->
+          <span v-if="store.id === session.currentSession?.store_id" class="text-tg-button text-xs flex-shrink-0">✔️</span>
         </button>
       </div>
     </div>

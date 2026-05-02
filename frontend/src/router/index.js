@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { watch } from 'vue'
 
 const routes = [
   {
@@ -50,6 +51,19 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  
+  // Чекаємо ініціалізації авторизації (Telegram API)
+  if (!auth.isInitialized) {
+    await new Promise((resolve) => {
+      const unwatch = watch(() => auth.isInitialized, (val) => {
+        if (val) {
+          unwatch()
+          resolve()
+        }
+      })
+    })
+  }
+
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'Unauthorized' }
   }

@@ -35,7 +35,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 max_requests, window = limits
                 break
 
-        key = f"rate:{identifier}:{request.url.path.split('/')[3]}" if len(request.url.path.split('/')) > 3 else f"rate:{identifier}:{request.url.path}"
+        # Ключ тепер включає метод та повний шлях для кращої гранулярності
+        key = f"rate:{identifier}:{request.method}:{request.url.path}"
 
         count = await redis_client.incr(key)
         if count == 1:

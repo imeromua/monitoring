@@ -10,12 +10,22 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 from openpyxl.styles import PatternFill, Font
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, and_, select
 
 from app.config import settings
 
 KYIV_TZ = ZoneInfo("Europe/Kyiv")
 YELLOW_FILL = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+
+# Singleton engine для синхронних операцій (Celery)
+_sync_engine = None
+
+def get_sync_engine():
+    global _sync_engine
+    if _sync_engine is None:
+        sync_url = settings.DATABASE_URL.replace("postgresql+asyncpg", "postgresql+psycopg2")
+        _sync_engine = create_engine(sync_url, pool_pre_ping=True)
+    return _sync_engine
 
 
 def build_report_sync(
@@ -26,12 +36,11 @@ def build_report_sync(
 ) -> str:
     """
     Генерація .xlsx звіту (синхронно, виконується в Celery-воркері).
-    Повертає повний шлях до файлу.
+    Повертає повний шлях до файлу. Використовує параметризований SQL.
     """
-    sync_url = settings.DATABASE_URL.replace("postgresql+asyncpg", "postgresql+psycopg2")
-    engine = create_engine(sync_url)
+    engine = get_sync_engine()
 
-    filters = ["1=1"]
+    filters = []
     params = {}
 
     if session_id:
@@ -47,7 +56,7 @@ def build_report_sync(
         filters.append("mr.created_at <= :date_to")
         params["date_to"] = date_to
 
-    where_clause = " AND ".join(filters)
+    where_clause = " AND ".join(filters) if filters else "1=1"
 
     query = text(f"""
         SELECT

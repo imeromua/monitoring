@@ -35,10 +35,14 @@ async def get_current_user(
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Невалідний токен")
 
-    telegram_id = int(payload["sub"])
+    telegram_id_str = payload.get("sub")
+    if not telegram_id_str:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Невалідний токен: відсутній sub")
+    
+    telegram_id = int(telegram_id_str)
 
     # Перевірка Redis Blacklist
-    is_blocked = await redis.get(f"blacklist:{telegram_id}")
+    is_blocked = await redis.get(f"blocked:{telegram_id}")
     if is_blocked:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Користувача заблоковано")
 

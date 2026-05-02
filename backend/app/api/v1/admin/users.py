@@ -56,9 +56,9 @@ async def update_user(
     if is_active is not None:
         user.is_active = is_active
         if not is_active:
-            await redis.set(f"blacklist:{user.telegram_id}", "1")
+            await redis.set(f"blocked:{user.telegram_id}", "1")
         else:
-            await redis.delete(f"blacklist:{user.telegram_id}")
+            await redis.delete(f"blocked:{user.telegram_id}")
 
     if role is not None:
         user.role = role

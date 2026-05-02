@@ -12,6 +12,8 @@ from app.models.category import Category
 
 router = APIRouter(prefix="/admin/catalog", tags=["admin"])
 
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
+
 
 @router.post("/upload")
 async def upload_catalog(
@@ -24,6 +26,9 @@ async def upload_catalog(
     Завантажує .xlsx файл з колонками: article_id, name, weight_label, category_id.
     Стратегія: UPSERT за article_id. Відсутні позиції позначаються is_archived=True.
     """
+    if file.size > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=400, detail="Файл занадто великий (макс. 10МБ)")
+
     if not file.filename.endswith(".xlsx"):
         raise HTTPException(status_code=400, detail="Потрібний файл .xlsx")
 

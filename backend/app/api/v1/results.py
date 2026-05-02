@@ -22,18 +22,21 @@ async def add_result(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    sess = (await db.execute(
-        select(MonitoringSession).where(
-            MonitoringSession.id == session_id,
-            MonitoringSession.user_id == current_user.id,
-            MonitoringSession.status == SessionStatus.in_progress,
-        )
-    )).scalar_one_or_none()
-
-    if not sess:
-        raise HTTPException(status_code=404, detail="Активну сесію не знайдено")
-
     async with db.begin():
+        # SELECT ... FOR UPDATE всередині транзакції для уникнення race condition
+        sess = (await db.execute(
+            select(MonitoringSession)
+            .where(
+                MonitoringSession.id == session_id,
+                MonitoringSession.user_id == current_user.id,
+                MonitoringSession.status == SessionStatus.in_progress,
+            )
+            .with_for_update()
+        )).scalar_one_or_none()
+
+        if not sess:
+            raise HTTPException(status_code=404, detail="Активну сесію не знайдено")
+
         result = MonitoringResult(
             session_id=session_id,
             product_id=payload.product_id,

@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import time
 from urllib.parse import unquote, parse_qsl
 from datetime import datetime, timedelta, timezone
 
@@ -11,15 +12,22 @@ from sqlalchemy import select
 from app.config import settings
 from app.models.user import User
 
+MAX_INIT_DATA_AGE = 86400  # 24 hours
+
 
 def verify_telegram_init_data(init_data: str) -> dict | None:
     """
     Перевірка підпису Telegram WebApp initData за HMAC-SHA256.
-    Повертає словник з даними користувача або None при невалідному підписі.
+    Повертає словник з даними користувача або None при невалідному підписі чи застарілих даних.
     """
     parsed = dict(parse_qsl(unquote(init_data), keep_blank_values=True))
     received_hash = parsed.pop("hash", None)
     if not received_hash:
+        return None
+
+    # Перевірка часу створення initData (auth_date)
+    auth_date = int(parsed.get("auth_date", 0))
+    if time.time() - auth_date > MAX_INIT_DATA_AGE:
         return None
 
     data_check_string = "\n".join(

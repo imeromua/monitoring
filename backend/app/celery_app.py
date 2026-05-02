@@ -15,6 +15,13 @@ celery = Celery(
 celery.conf.timezone = "Europe/Kyiv"
 celery.conf.enable_utc = True
 
+# Security & Stability settings
+celery.conf.task_serializer = "json"
+celery.conf.accept_content = ["json"]
+celery.conf.result_serializer = "json"
+celery.conf.result_expires = 3600  # 1 hour
+celery.conf.worker_max_tasks_per_child = 100
+
 celery.conf.beat_schedule = {
     "cleanup-old-reports": {
         "task": "app.tasks.maintenance.cleanup_old_reports",

@@ -6,7 +6,7 @@
     </div>
 
     <!-- Магазини -->
-    <div class="px-4 mb-4">
+    <div v-if="catalog.stores.length > 1" class="px-4 mb-4">
       <p class="text-xs text-tg-hint uppercase tracking-wide mb-2">Магазини</p>
       <div class="space-y-2">
         <button
@@ -23,21 +23,30 @@
 
     <!-- Категорії -->
     <div class="px-4">
-      <p class="text-xs text-tg-hint uppercase tracking-wide mb-2">Категорії</p>
+      <p class="text-xs text-tg-hint uppercase tracking-wide mb-3">Категорії</p>
       <div class="grid grid-cols-2 gap-3">
         <button
-          v-for="cat in allCategories"
+          v-for="cat in activeCategories"
           :key="cat.id"
           @click="goToCarousel(cat.id)"
-          class="rounded-2xl bg-tg-secondary p-4 text-left active:opacity-70 transition-opacity"
+          class="relative rounded-2xl bg-tg-secondary p-4 text-left active:scale-95 transition-transform duration-150"
         >
-          <div class="text-2xl mb-2">📦</div>
-          <div class="font-medium text-sm">{{ cat.name }}</div>
-          <div class="text-xs text-tg-hint mt-1">{{ catalog.getTotalProductsCount(cat.id) }} товарів</div>
+          <!-- Emoji іконка -->
+          <div class="text-3xl mb-3">{{ getCategoryEmoji(cat) }}</div>
+
+          <!-- Назва -->
+          <div class="font-semibold text-sm leading-tight mb-2">{{ cat.name }}</div>
+
+          <!-- Ярлик з кількістю товарів -->
+          <div class="inline-flex items-center gap-1 bg-tg-button/15 rounded-full px-2 py-0.5">
+            <span class="text-xs">&#x1f4e6;</span>
+            <span class="text-xs font-medium text-tg-button">{{ catalog.getTotalProductsCount(cat.id) }}</span>
+          </div>
         </button>
       </div>
-      <p v-if="allCategories.length === 0" class="text-center text-tg-hint text-sm py-6">
-        Каталог порожній
+
+      <p v-if="activeCategories.length === 0" class="text-center text-tg-hint text-sm py-10">
+        Каталог порожній. Зверніться до адміністратора.
       </p>
     </div>
 
@@ -56,10 +65,25 @@ const router = useRouter()
 const catalog = useCatalogStore()
 const session = useSessionStore()
 
-// Усі категорії без батьківських, сортовані
-const allCategories = computed(() =>
+// Емодзі за першою літерою назви
+const CATEGORY_EMOJIS = {
+  'а': '🍎', 'б': '🥐', 'в': '💧', 'г': '🍄', 'д': '🌳',
+  'е': '💻', 'ж': '🪼', 'з': '🌟', 'и': '🧸', 'і': '🍨',
+  'ї': '📦', 'й': '🌊', 'к': '🎨', 'л': '🛒', 'м': '🍦',
+  'н': '📺', 'о': '🎁', 'п': '📖', 'р': '🌹', 'с': '👖',
+  'т': '🍕', 'у': '🐑', 'ф': '🥡', 'х': '🌾', 'ц': '🍢',
+  'ч': '🐡', 'ш': '🍫', 'щ': '🥞', 'ю': '🎠', 'я': '🍋',
+}
+
+function getCategoryEmoji(cat) {
+  const firstChar = cat.name?.[0]?.toLowerCase() || ''
+  return CATEGORY_EMOJIS[firstChar] || '📦'
+}
+
+// Тільки категорії з товарами, сортовані
+const activeCategories = computed(() =>
   catalog.categories
-    .filter((c) => c.parent_id === null || c.parent_id === undefined)
+    .filter((c) => catalog.getTotalProductsCount(c.id) > 0)
     .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, 'uk'))
 )
 

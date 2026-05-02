@@ -1,8 +1,10 @@
 import logging
 import smtplib
+import email.utils
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
+from email.header import Header
 from email import encoders
 from datetime import date, datetime, timezone, timedelta
 from pathlib import Path
@@ -235,39 +237,67 @@ def send_report_email(
     session_id: int,
     extra_subject: str = "",
 ):
-    filename     = Path(filepath).name
-    subject      = f"📊 Звіт моніторингу #{session_id}"
+    """
+    Відправляє Excel-звіт на пошту.
+    Використовує SMTP_FROM як адресу відправника, SMTP_USER/PASSWORD — для автентифікації.
+    """
+    filename  = Path(filepath).name
+    from_addr = settings.smtp_from_address
+
+    # Правильне кодування теми з юнікодом (для всіх SMTP-провайдерів)
+    raw_subject = f"Zvit monitorynhu #{session_id}"
     if extra_subject:
-        subject += f" — {extra_subject}"
+        raw_subject += f" - {extra_subject}"
+    # RFC 2047 encoded subject
+    subject_header = Header(f"Zvit monitorynhu #{session_id}" + (f" - {extra_subject}" if extra_subject else ""), charset="utf-8")
 
-    from_addr = settings.smtp_from_address  # верифікований адреса відправника
-
-    msg            = MIMEMultipart()
-    msg["From"]    = from_addr
-    msg["To"]      = ", ".join(recipients)
-    msg["Subject"] = subject
+    msg = MIMEMultipart()
+    msg["From"]       = from_addr
+    msg["To"]         = ", ".join(recipients)
+    msg["Subject"]    = subject_header
+    msg["Date"]       = email.utils.formatdate(localtime=True)
+    msg["Message-ID"] = email.utils.make_msgid(domain="store-check.ua")
 
     body = (
-        f"Вітаємо!\n\n"
-        f"У вкладенні — звіт цінового моніторингу по сесії #{session_id}.\n"
-        f"Файл: {filename}\n\n"
-        f"З повагою,\nСистема моніторингу Store Check"
+        f"\u0412\u0456\u0442\u0430\u0454\u043c\u043e!\n\n"
+        f"\u0423 \u0432\u043a\u043b\u0430\u0434\u0435\u043d\u043d\u0456 \u2014 \u0437\u0432\u0456\u0442 \u0446\u0456\u043d\u043e\u0432\u043e\u0433\u043e \u043c\u043e\u043d\u0456\u0442\u043e\u0440\u0438\u043d\u0433\u0443 \u043f\u043e \u0441\u0435\u0441\u0456\u0457 #{session_id}.\n"
+        f"\u0424\u0430\u0439\u043b: {filename}\n"
+        f"\u0414\u0430\u0442\u0430: {datetime.now(KYIV_TZ).strftime('%d.%m.%Y %H:%M')}\n\n"
+        f"\u0417 \u043f\u043e\u0432\u0430\u0433\u043e\u044e,\n\u0421\u0438\u0441\u0442\u0435\u043c\u0430 \u043c\u043e\u043d\u0456\u0442\u043e\u0440\u0438\u043d\u0433\u0443 Store Check"
     )
     msg.attach(MIMEText(body, "plain", "utf-8"))
 
     with open(filepath, "rb") as f:
-        part = MIMEBase("application", "octet-stream")
+        part = MIMEBase("application", "vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         part.set_payload(f.read())
         encoders.encode_base64(part)
         part.add_header(
             "Content-Disposition",
             f'attachment; filename="{filename}"',
         )
+        part.add_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        name=filename)
         msg.attach(part)
 
-    logger.info("Sending report email to %s via %s", recipients, from_addr)
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-        server.starttls()
-        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        server.sendmail(from_addr, recipients, msg.as_string())
-    logger.info("Report email sent successfully")
+    logger.info("Sending email: from=%s to=%s subject=%s", from_addr, recipients, raw_subject)
+    try:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=30) as server:
+            server.set_debuglevel(0)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.sendmail(from_addr, recipients, msg.as_bytes())
+        logger.info("Email sent successfully to %s", recipients)
+    except smtplib.SMTPAuthenticationError as exc:
+        logger.error("SMTP auth failed: %s", exc)
+        raise
+    except smtplib.SMTPRecipientsRefused as exc:
+        logger.error("SMTP recipients refused: %s", exc)
+        raise
+    except smtplib.SMTPSenderRefused as exc:
+        logger.error("SMTP sender refused: %s — check SMTP_FROM is verified", exc)
+        raise
+    except Exception as exc:
+        logger.exception("SMTP error: %s", exc)
+        raise

@@ -4,7 +4,7 @@ export const getCatalog = () => api.get('/catalog')
 export const getStores = () => api.get('/stores')
 
 // Admin Catalog (Products)
-export const getAdminProducts = () => api.get('/admin/catalog/products')
+export const getAdminProducts = (archived = false) => api.get(`/admin/catalog/products?archived=${archived}`)
 export const createAdminProduct = (data) => api.post('/admin/catalog/products', data)
 export const updateAdminProduct = (id, data) => api.put(`/admin/catalog/products/${id}`, data)
 export const deleteAdminProduct = (id) => api.delete(`/admin/catalog/products/${id}`)

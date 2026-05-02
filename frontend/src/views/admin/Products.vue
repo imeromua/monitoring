@@ -2,16 +2,21 @@
   <div class="flex flex-col min-h-screen pb-20">
     <div class="p-4 border-b border-tg-hint/10 flex justify-between items-center">
       <h1 class="text-xl font-bold">🏷️ Товари</h1>
-      <button @click="openModal()" class="px-4 py-2 bg-tg-button text-tg-button-text rounded-lg text-sm font-medium">
-        + Додати
-      </button>
+      <div class="flex gap-2">
+        <button @click="toggleArchived" class="px-3 py-2 bg-tg-secondary rounded-lg text-xs font-medium" :class="{ 'ring-2 ring-tg-button': showArchived }">
+          Архівні
+        </button>
+        <button @click="openModal()" class="px-4 py-2 bg-tg-button text-tg-button-text rounded-lg text-sm font-medium">
+          + Додати
+        </button>
+      </div>
     </div>
 
     <!-- Список -->
     <div class="p-4 space-y-2">
       <div v-for="product in products" :key="product.id" class="bg-tg-secondary rounded-xl p-4 flex justify-between items-center">
         <div>
-          <p class="font-medium text-sm">{{ product.name }}</p>
+          <p class="font-medium text-sm">{{ product.name }} <span v-if="product.is_archived" class="text-red-400 text-xs ml-1">(архів)</span></p>
           <p class="text-xs text-tg-hint">Артикул: {{ product.article_id }} · Категорія ID: {{ product.category_id }}</p>
         </div>
         <div class="flex gap-2">
@@ -34,6 +39,10 @@
             <option value="" disabled>Оберіть категорію</option>
             <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }} (ID: {{ cat.id }})</option>
           </select>
+          <label v-if="isEditing" class="flex items-center gap-2 text-sm">
+            <input type="checkbox" v-model="form.is_archived" class="rounded text-tg-button bg-tg-secondary border-none" />
+            В архіві
+          </label>
         </div>
         <div class="p-4 grid grid-cols-2 gap-3 mt-auto">
           <button @click="closeModal" class="py-3 rounded-xl bg-tg-secondary text-tg-text font-medium text-sm">Скасувати</button>
@@ -56,13 +65,14 @@ const categories = ref([])
 
 const isModalOpen = ref(false)
 const isEditing = ref(false)
-const form = ref({ id: null, article_id: '', name: '', category_id: '' })
+const showArchived = ref(false)
+const form = ref({ id: null, article_id: '', name: '', category_id: '', is_archived: false })
 
 const isValid = computed(() => form.value.article_id?.length === 8 && form.value.name && form.value.category_id)
 
 async function loadData() {
   const [prodRes, catRes] = await Promise.all([
-    getAdminProducts(),
+    getAdminProducts(showArchived.value),
     getAdminCategories()
   ])
   products.value = prodRes.data
@@ -73,13 +83,18 @@ onMounted(() => {
   loadData()
 })
 
+function toggleArchived() {
+  showArchived.value = !showArchived.value
+  loadData()
+}
+
 function openModal(product = null) {
   if (product) {
     isEditing.value = true
     form.value = { ...product }
   } else {
     isEditing.value = false
-    form.value = { id: null, article_id: '', name: '', category_id: '' }
+    form.value = { id: null, article_id: '', name: '', category_id: '', is_archived: false }
   }
   isModalOpen.value = true
 }
@@ -90,27 +105,36 @@ function closeModal() {
 
 async function saveProduct() {
   if (!isValid.value) return
-  if (isEditing.value) {
-    await updateAdminProduct(form.value.id, {
-      article_id: form.value.article_id,
-      name: form.value.name,
-      category_id: form.value.category_id
-    })
-  } else {
-    await createAdminProduct({
-      article_id: form.value.article_id,
-      name: form.value.name,
-      category_id: form.value.category_id
-    })
+  try {
+    if (isEditing.value) {
+      await updateAdminProduct(form.value.id, {
+        article_id: form.value.article_id,
+        name: form.value.name,
+        category_id: form.value.category_id,
+        is_archived: form.value.is_archived
+      })
+    } else {
+      await createAdminProduct({
+        article_id: form.value.article_id,
+        name: form.value.name,
+        category_id: form.value.category_id
+      })
+    }
+    closeModal()
+    await loadData()
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Помилка збереження товару')
   }
-  closeModal()
-  await loadData()
 }
 
 async function deleteProduct(id) {
   if (confirm('Ви впевнені, що хочете видалити цей товар?')) {
-    await deleteAdminProduct(id)
-    await loadData()
+    try {
+      await deleteAdminProduct(id)
+      await loadData()
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Помилка видалення товару')
+    }
   }
 }
 </script>

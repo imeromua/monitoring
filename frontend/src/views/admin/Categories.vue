@@ -87,27 +87,35 @@ function closeModal() {
 
 async function saveCategory() {
   if (!isValid.value) return
-  if (isEditing.value) {
-    await updateAdminCategory(form.value.id, {
-      name: form.value.name,
-      level: form.value.level,
-      sort_order: form.value.sort_order
-    })
-  } else {
-    await createAdminCategory({
-      name: form.value.name,
-      level: form.value.level,
-      sort_order: form.value.sort_order || 0
-    })
+  try {
+    if (isEditing.value) {
+      await updateAdminCategory(form.value.id, {
+        name: form.value.name,
+        level: form.value.level,
+        sort_order: form.value.sort_order
+      })
+    } else {
+      await createAdminCategory({
+        name: form.value.name,
+        level: form.value.level,
+        sort_order: form.value.sort_order || 0
+      })
+    }
+    closeModal()
+    await loadData()
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Помилка збереження категорії')
   }
-  closeModal()
-  await loadData()
 }
 
 async function deleteCategory(id) {
   if (confirm('Ви впевнені, що хочете видалити цю категорію?')) {
-    await deleteAdminCategory(id)
-    await loadData()
+    try {
+      await deleteAdminCategory(id)
+      await loadData()
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Помилка видалення категорії')
+    }
   }
 }
 </script>

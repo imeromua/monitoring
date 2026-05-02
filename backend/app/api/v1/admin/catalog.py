@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 import pandas as pd
 import io
+from typing import List
 
 from app.db.base import get_db
 from app.api.deps import require_admin, get_redis
@@ -12,7 +13,6 @@ from app.models.product import Product
 from app.models.category import Category, CategoryLevel
 from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
 from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
-from typing import List
 
 router = APIRouter(prefix="/admin/catalog", tags=["admin"])
 
@@ -31,7 +31,7 @@ async def _get_or_create_category(db: AsyncSession, name: str) -> int:
         return cat.id
     new_cat = Category(name=name, level=CategoryLevel.group, sort_order=0)
     db.add(new_cat)
-    await db.flush()  # отримуємо id без commit
+    await db.flush()
     return new_cat.id
 
 
@@ -44,8 +44,7 @@ async def upload_catalog(
 ):
     """
     Завантажує .xlsx файл з колонками: Категорія, Артикул, Назва.
-    Стратегія: UPSERT за article_id. Відсутні позиції позначаються is_archived=True.
-    Артикул — ровно 8 цифр.
+    UPSERT за article_id. Відсутні позиції позначаються is_archived=True.
     """
     if file.size and file.size > MAX_UPLOAD_SIZE:
         raise HTTPException(status_code=400, detail="Файл занадто великий (макс. 10МБ)")
@@ -56,10 +55,8 @@ async def upload_catalog(
     content = await file.read()
     df = pd.read_excel(io.BytesIO(content), dtype=str)
 
-    # Нормалізація назв колонок
     df.columns = [c.strip().lower() for c in df.columns]
 
-    # Підтримка українських назв колонок
     col_map = {
         "категорія": "category",
         "артикул": "article",
@@ -81,7 +78,6 @@ async def upload_catalog(
 
     df = df.dropna(subset=["article", "name", "category"])
 
-    # Валідація артикулів
     invalid = df[~df["article"].str.match(r'^\d{8}$')]
     if not invalid.empty:
         bad = invalid["article"].tolist()[:5]
@@ -91,7 +87,6 @@ async def upload_catalog(
         )
 
     uploaded_articles = set(df["article"].tolist())
-    upserted = 0
 
     from sqlalchemy.dialects.postgresql import insert
 
@@ -116,9 +111,7 @@ async def upload_catalog(
             }
         )
         await db.execute(stmt)
-        upserted = len(records)
 
-    # Архівація видалених позицій
     await db.execute(
         update(Product)
         .where(Product.article_id.notin_(uploaded_articles))
@@ -128,17 +121,22 @@ async def upload_catalog(
     await db.commit()
     await redis.delete("catalog:full")
 
-    return {"status": "ok", "upserted": upserted}
+    return {"status": "ok", "upserted": len(records)}
+
 
 # --- Products CRUD ---
 
 @router.get("/products", response_model=List[ProductResponse])
 async def get_products(
+    archived: bool = False,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    result = await db.execute(select(Product))
+    result = await db.execute(
+        select(Product).where(Product.is_archived == archived)
+    )
     return result.scalars().all()
+
 
 @router.post("/products", response_model=ProductResponse)
 async def create_product(
@@ -147,17 +145,17 @@ async def create_product(
     redis=Depends(get_redis),
     current_user: User = Depends(require_admin),
 ):
-    # Check if article_id already exists
     existing = await db.execute(select(Product).where(Product.article_id == product_in.article_id))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Товар з таким артикулом вже існує")
-        
+
     new_product = Product(**product_in.model_dump())
     db.add(new_product)
     await db.commit()
     await db.refresh(new_product)
     await redis.delete("catalog:full")
     return new_product
+
 
 @router.put("/products/{product_id}", response_model=ProductResponse)
 async def update_product(
@@ -172,14 +170,14 @@ async def update_product(
     if not product:
         raise HTTPException(status_code=404, detail="Товар не знайдено")
 
-    update_data = product_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
+    for field, value in product_in.model_dump(exclude_unset=True).items():
         setattr(product, field, value)
 
     await db.commit()
     await db.refresh(product)
     await redis.delete("catalog:full")
     return product
+
 
 @router.delete("/products/{product_id}")
 async def delete_product(
@@ -198,6 +196,7 @@ async def delete_product(
     await redis.delete("catalog:full")
     return {"status": "ok"}
 
+
 # --- Categories CRUD ---
 
 @router.get("/categories", response_model=List[CategoryResponse])
@@ -207,6 +206,7 @@ async def get_categories(
 ):
     result = await db.execute(select(Category).order_by(Category.sort_order))
     return result.scalars().all()
+
 
 @router.post("/categories", response_model=CategoryResponse)
 async def create_category(
@@ -222,6 +222,7 @@ async def create_category(
     await redis.delete("catalog:full")
     return new_category
 
+
 @router.put("/categories/{category_id}", response_model=CategoryResponse)
 async def update_category(
     category_id: int,
@@ -235,14 +236,14 @@ async def update_category(
     if not category:
         raise HTTPException(status_code=404, detail="Категорію не знайдено")
 
-    update_data = category_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
+    for field, value in category_in.model_dump(exclude_unset=True).items():
         setattr(category, field, value)
 
     await db.commit()
     await db.refresh(category)
     await redis.delete("catalog:full")
     return category
+
 
 @router.delete("/categories/{category_id}")
 async def delete_category(
@@ -255,6 +256,26 @@ async def delete_category(
     category = result.scalar_one_or_none()
     if not category:
         raise HTTPException(status_code=404, detail="Категорію не знайдено")
+
+    # Перевірка наявності товарів в категорії
+    has_products = await db.execute(
+        select(Product.id).where(Product.category_id == category_id).limit(1)
+    )
+    if has_products.scalar_one_or_none():
+        raise HTTPException(
+            status_code=400,
+            detail="Категорія містить товари. Спочатку видаліть або перемістіть товари"
+        )
+
+    # Перевірка наявності дочірніх категорій
+    has_children = await db.execute(
+        select(Category.id).where(Category.parent_id == category_id).limit(1)
+    )
+    if has_children.scalar_one_or_none():
+        raise HTTPException(
+            status_code=400,
+            detail="Категорія містить підкатегорії. Спочатку видаліть їх"
+        )
 
     await db.delete(category)
     await db.commit()

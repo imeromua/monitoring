@@ -26,20 +26,27 @@ class AuthMiddleware(BaseMiddleware):
 
         telegram_id = event.from_user.id
 
-        if telegram_id == settings.SUPERADMIN_TELEGRAM_ID:
-            data["is_authorized"] = True
-            return await handler(event, data)
-
         async with AsyncSessionLocal() as db:
             result = await db.execute(
                 select(User).where(
                     User.telegram_id == telegram_id,
-                    User.is_active == True,
                 )
             )
             user = result.scalar_one_or_none()
 
-        if not user:
+            # Якщо це Superadmin і його немає в БД — створюємо
+            if not user and telegram_id == settings.SUPERADMIN_TELEGRAM_ID:
+                user = User(
+                    telegram_id=telegram_id,
+                    full_name=event.from_user.full_name,
+                    role="admin",
+                    is_active=True,
+                )
+                db.add(user)
+                await db.commit()
+                await db.refresh(user)
+
+        if not user or not user.is_active:
             await event.answer(
                 "⛔ У вас немає доступу до системи.\n"
                 "Зверніться до адміністратора."

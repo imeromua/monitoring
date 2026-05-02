@@ -64,21 +64,27 @@ def decode_token(token: str) -> dict | None:
 
 async def get_or_create_user(db: AsyncSession, telegram_id: int, full_name: str) -> User | None:
     """
-    Superadmin визначається з .env. Решта — з БД.
+    Повертає користувача з БД. Якщо це Superadmin і його немає — створює.
     Повертає None якщо користувача немає в системі або він заблокований.
     """
-    if telegram_id == settings.SUPERADMIN_TELEGRAM_ID:
-        return User(
-            telegram_id=telegram_id,
-            full_name=full_name,
-            role="admin",
-            is_active=True,
-        )
-
     result = await db.execute(select(User).where(User.telegram_id == telegram_id))
     user = result.scalar_one_or_none()
 
-    if not user or not user.is_active:
+    if not user:
+        if telegram_id == settings.SUPERADMIN_TELEGRAM_ID:
+            user = User(
+                telegram_id=telegram_id,
+                full_name=full_name,
+                role="admin",
+                is_active=True,
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+        else:
+            return None
+
+    if not user.is_active:
         return None
 
     return user

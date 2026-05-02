@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # Telegram
     BOT_TOKEN: str
     SUPERADMIN_TELEGRAM_ID: int
+    MINI_APP_URL: str = "https://your-domain.com"
 
     # JWT
     JWT_SECRET_KEY: str

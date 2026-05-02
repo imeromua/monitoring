@@ -5,6 +5,7 @@ uvicorn[standard]==0.30.6
 # Database
 asyncpg==0.29.0
 sqlalchemy[asyncio]==2.0.36
+psycopg2-binary==2.9.9
 
 # Cache / Broker
 redis==5.1.1

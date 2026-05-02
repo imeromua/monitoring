@@ -12,12 +12,16 @@ from app.models.user import User
 bearerScheme = HTTPBearer()
 
 
+from app.db.redis import get_redis_client
+
 async def get_redis():
-    client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    client = get_redis_client()
     try:
         yield client
     finally:
-        await client.aclose()
+        # При використанні ConnectionPool закривати клієнт не обов'язково на кожен запит,
+        # але для чистоти коду ми просто повертаємо його в пул.
+        pass
 
 
 async def get_current_user(
@@ -38,10 +42,7 @@ async def get_current_user(
     if is_blocked:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Користувача заблоковано")
 
-    # Superadmin — без запиту в БД
-    if telegram_id == settings.SUPERADMIN_TELEGRAM_ID:
-        return User(telegram_id=telegram_id, full_name="Superadmin", role="admin", is_active=True)
-
+    # Знаходимо користувача в БД
     result = await db.execute(select(User).where(User.telegram_id == telegram_id))
     user = result.scalar_one_or_none()
 

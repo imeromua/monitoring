@@ -7,8 +7,6 @@ from app.config import settings
 
 router = Router()
 
-# URL фронтенду Mini App (заповнити після деплою)
-MINI_APP_URL = "https://your-domain.com"  # замінити на реальний URL
 
 
 @router.message(CommandStart())
@@ -19,7 +17,7 @@ async def cmd_start(message: Message):
     builder = InlineKeyboardBuilder()
     builder.button(
         text="📊 Відкрити Store Check",
-        web_app=WebAppInfo(url=MINI_APP_URL),
+        web_app=WebAppInfo(url=settings.MINI_APP_URL),
     )
 
     await message.answer(

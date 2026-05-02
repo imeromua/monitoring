@@ -1,7 +1,8 @@
 from fastapi import Request, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
-import redis.asyncio as aioredis
 from app.config import settings
+from app.db.redis import get_redis_client
+from app.services.auth_service import decode_token
 
 # Ліміти за маршрутам
 RATE_LIMITS = {
@@ -10,7 +11,7 @@ RATE_LIMITS = {
 }
 DEFAULT_LIMIT = (120, 60)            # 120 зап/хв — для решти маршрутів
 
-redis_client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+redis_client = get_redis_client()
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
@@ -54,7 +55,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         auth = request.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
             try:
-                from app.services.auth_service import decode_token
                 payload = decode_token(auth.split(" ")[1])
                 if payload:
                     return f"user:{payload['sub']}"

@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 from openpyxl.styles import PatternFill, Font
-from sqlalchemy import create_engine, text, and_, select
+from sqlalchemy import create_engine, text, bindparam
 
 from app.config import settings
 
@@ -20,12 +20,44 @@ YELLOW_FILL = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="s
 # Singleton engine для синхронних операцій (Celery)
 _sync_engine = None
 
+
 def get_sync_engine():
     global _sync_engine
     if _sync_engine is None:
         sync_url = settings.DATABASE_URL.replace("postgresql+asyncpg", "postgresql+psycopg2")
         _sync_engine = create_engine(sync_url, pool_pre_ping=True)
     return _sync_engine
+
+
+# Статичний SQL з усіма можливими умовами через COALESCE/IS NULL-трюк:
+# кожен фільтр активується тільки якщо параметр не NULL.
+_REPORT_SQL = text("""
+    SELECT
+        mr.created_at AT TIME ZONE 'Europe/Kyiv' AS "Дата/Час",
+        u.full_name                               AS "Працівник",
+        s.name                                    AS "Магазин",
+        p.article_id                              AS "Артикул",
+        COALESCE(mr.custom_name, p.name)          AS "Товар",
+        mr.price                                  AS "Ціна",
+        CASE WHEN mr.is_promo THEN 'Акція' ELSE 'Звичайна' END AS "Тип ціни",
+        mr.result_type                            AS "Тип запису"
+    FROM monitoring_results mr
+    JOIN monitoring_sessions ms ON mr.session_id = ms.id
+    JOIN users u ON ms.user_id = u.id
+    JOIN stores s ON ms.store_id = s.id
+    LEFT JOIN products p ON mr.product_id = p.id
+    WHERE
+        (:session_id IS NULL OR ms.id        = :session_id)
+        AND (:store_id   IS NULL OR s.id     = :store_id)
+        AND (:date_from  IS NULL OR mr.created_at >= :date_from)
+        AND (:date_to    IS NULL OR mr.created_at <= :date_to)
+    ORDER BY mr.created_at
+""").bindparams(
+    bindparam("session_id", value=None),
+    bindparam("store_id",   value=None),
+    bindparam("date_from",  value=None),
+    bindparam("date_to",    value=None),
+)
 
 
 def build_report_sync(
@@ -36,49 +68,20 @@ def build_report_sync(
 ) -> str:
     """
     Генерація .xlsx звіту (синхронно, виконується в Celery-воркері).
-    Повертає повний шлях до файлу. Використовує параметризований SQL.
+    Повертає повний шлях до файлу.
+    Використовує повністю параметризований SQL (без f-рядків) — SQL-ін'єкція неможлива.
     """
     engine = get_sync_engine()
 
-    filters = []
-    params = {}
-
-    if session_id:
-        filters.append("ms.id = :session_id")
-        params["session_id"] = session_id
-    if store_id:
-        filters.append("s.id = :store_id")
-        params["store_id"] = store_id
-    if date_from:
-        filters.append("mr.created_at >= :date_from")
-        params["date_from"] = date_from
-    if date_to:
-        filters.append("mr.created_at <= :date_to")
-        params["date_to"] = date_to
-
-    where_clause = " AND ".join(filters) if filters else "1=1"
-
-    query = text(f"""
-        SELECT
-            mr.created_at AT TIME ZONE 'Europe/Kyiv' AS "Дата/Час",
-            u.full_name AS "Працівник",
-            s.name AS "Магазин",
-            p.article_id AS "Артикул",
-            COALESCE(mr.custom_name, p.name) AS "Товар",
-            mr.price AS "Ціна",
-            CASE WHEN mr.is_promo THEN 'Акція' ELSE 'Звичайна' END AS "Тип ціни",
-            mr.result_type AS "Тип запису"
-        FROM monitoring_results mr
-        JOIN monitoring_sessions ms ON mr.session_id = ms.id
-        JOIN users u ON ms.user_id = u.id
-        JOIN stores s ON ms.store_id = s.id
-        LEFT JOIN products p ON mr.product_id = p.id
-        WHERE {where_clause}
-        ORDER BY mr.created_at
-    """)
+    params = {
+        "session_id": session_id,
+        "store_id":   store_id,
+        "date_from":  date_from,
+        "date_to":    date_to,
+    }
 
     with engine.connect() as conn:
-        df = pd.read_sql(query, conn, params=params)
+        df = pd.read_sql(_REPORT_SQL, conn, params=params)
 
     reports_path = settings.reports_path
     timestamp = datetime.now(KYIV_TZ).strftime("%Y%m%d_%H%M%S")
@@ -90,11 +93,12 @@ def build_report_sync(
         ws = writer.sheets["Звіт"]
 
         # Підсвічуємо новинки конкурента жовтим
-        type_col_idx = df.columns.get_loc("Тип запису") + 1
         for row_idx, row_val in enumerate(df["Тип запису"], start=2):
             if row_val == "competitor_new":
-                for col in ws.iter_cols(min_row=row_idx, max_row=row_idx,
-                                        min_col=1, max_col=len(df.columns)):
+                for col in ws.iter_cols(
+                    min_row=row_idx, max_row=row_idx,
+                    min_col=1, max_col=len(df.columns)
+                ):
                     for cell in col:
                         cell.fill = YELLOW_FILL
             elif row_val == "variant":
